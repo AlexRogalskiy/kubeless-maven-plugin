@@ -2,6 +2,8 @@
 
 Maven plugin that reads a class in `/src/main/io/kubeless` directory and the `pom.xml` of the project and converts them into a ready to use inputs in `kubeless function deploy` command.
 
+> **Tip:** Use the Maven Archetype [`kubeless-dev-environment-archetype`](https://github.com/ivangfr/kubeless-dev-environment-archetype) to implement your Kubeless Functions.
+
 ## Maven Plugin
 
 ### Setup
