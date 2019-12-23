@@ -32,7 +32,6 @@
                 <version>@project.version@</version>
                 <configuration>
                     <inputJavaClassName>AppFunction</inputJavaClassName>
-                    <outputJavaClassName>KAppFunction</outputJavaClassName>
                 </configuration>
                 <executions>
                     <execution>

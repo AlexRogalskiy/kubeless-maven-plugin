@@ -18,6 +18,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 import java.io.File;
@@ -40,17 +41,11 @@ public class KubelessConvertMojo extends AbstractMojo {
     @Parameter(property = "inputJavaClassName", required = true)
     protected String inputJavaClassName;
 
-    @Parameter(property = "outputJavaClassName", required = true)
-    protected String outputJavaClassName;
-
-    @Parameter(property = "inputJavaClassDirectory", defaultValue = "${basedir}/src/main/java/io/kubeless", required = true, readonly = true)
-    protected File inputJavaClassDirectory;
-
     @Parameter(property = "outputDirectory", defaultValue = "${project.build.directory}/generated-sources/kubeless", required = true)
     protected File outputDirectory;
 
-    @Parameter(property = "inputPomDirectory", defaultValue = "${basedir}", required = true, readonly = true)
-    protected File inputPomDirectory;
+    @Parameter(defaultValue = "${project}", required = true, readonly = true)
+    MavenProject project;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -62,39 +57,27 @@ public class KubelessConvertMojo extends AbstractMojo {
 
     protected void checkInputsExist() throws MojoExecutionException {
         if (!getInputJavaClassFile().exists()) {
-            throw new MojoExecutionException("The input Java Class informed does not exist");
+            String errorMessage = String.format("The input Java Class informed does not exist in %s", getInputJavaClassDirectory());
+            throw new MojoExecutionException(errorMessage);
         }
+        validateInputJavaClass();
         if (!getInputPomFile().exists()) {
-            throw new MojoExecutionException("The pom.xml file is not present in the directory informed");
+            String errorMessage = String.format("The input pom.xml file is not present in %s", getInputPomDirectory());
+            throw new MojoExecutionException(errorMessage);
         }
     }
 
-    private void createOutputDirectory() throws MojoExecutionException {
-        try {
-            final Path path = Paths.get(outputDirectory.toURI());
-            if (!path.toFile().exists()) {
-                Files.createDirectories(path);
-                getLog().info("Created successfully directory: " + path);
-            }
-        } catch (IOException e) {
-            throw new MojoExecutionException("Unable to create output directory", e);
-        }
-    }
-
-    private void createOutputJavaClassFile() throws MojoExecutionException {
-        final CompilationUnit compilationUnit = validateInputJavaClass();
-        writeOutputClassFile(manipulateInputJavaClassContent(compilationUnit));
-    }
-
-    private CompilationUnit validateInputJavaClass() throws MojoExecutionException {
+    private void validateInputJavaClass() throws MojoExecutionException {
         try {
             final CompilationUnit compilationUnit = StaticJavaParser.parse(getInputJavaClassFile());
 
             Optional<PackageDeclaration> packageDeclarationOptional = compilationUnit.getPackageDeclaration();
             boolean hasValidPackage = packageDeclarationOptional.isPresent() &&
-                    packageDeclarationOptional.get().getName().asString().equals(IO_KUBELESS);
+                    packageDeclarationOptional.get().getName().asString().equals(PKG_NAME_IO_KUBELESS);
             if (!hasValidPackage) {
-                throw new MojoExecutionException("The input Java Class must belong to package io.kubeless");
+                String errorMessage = String.format("The input Java Class must be in %s and belong to package %s",
+                        project.getBasedir(), PKG_NAME_IO_KUBELESS);
+                throw new MojoExecutionException(errorMessage);
             }
 
             ClassOrInterfaceDeclaration classOrInterfaceDeclaration = compilationUnit.getClassByName(inputJavaClassName)
@@ -122,8 +105,6 @@ public class KubelessConvertMojo extends AbstractMojo {
             if (!anyMethodOptional.isPresent()) {
                 throw new MojoExecutionException("The input Java Class informed does not implement any Kubeless Function, i.e, one method that takes io.kubeless.Event and io.kubeless.Context as parameters and returns a String");
             }
-
-            return compilationUnit;
         } catch (FileNotFoundException e) {
             throw new MojoExecutionException("Unable to read input Java Class", e);
         } catch (ParseProblemException e) {
@@ -131,18 +112,22 @@ public class KubelessConvertMojo extends AbstractMojo {
         }
     }
 
-    private String manipulateInputJavaClassContent(final CompilationUnit compilationUnit) {
-        compilationUnit.getClassByName(inputJavaClassName).ifPresent(cClass -> {
-            cClass.setName(outputJavaClassName);
-            cClass.getConstructors().forEach(constructor -> constructor.setName(outputJavaClassName));
-        });
-        return compilationUnit.toString();
+    private void createOutputDirectory() throws MojoExecutionException {
+        try {
+            final Path path = Paths.get(outputDirectory.toURI());
+            if (!path.toFile().exists()) {
+                Files.createDirectories(path);
+                getLog().info("Created successfully directory: " + path);
+            }
+        } catch (IOException e) {
+            throw new MojoExecutionException("Unable to create output directory", e);
+        }
     }
 
-    private void writeOutputClassFile(String classContent) throws MojoExecutionException {
+    private void createOutputJavaClassFile() throws MojoExecutionException {
         try {
-            Files.write(getOutputJavaSourceFile().toPath(), classContent.getBytes());
-            getLog().info("Created successfully file: " + getOutputJavaSourceFile());
+            Files.write(getOutputJavaClassFile().toPath(), Files.readAllBytes(getInputJavaClassFile().toPath()));
+            getLog().info("Created successfully file: " + getOutputJavaClassFile());
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to write output Java Class", e);
         }
@@ -196,16 +181,24 @@ public class KubelessConvertMojo extends AbstractMojo {
         }
     }
 
-    private File getInputJavaClassFile() {
-        return Paths.get(inputJavaClassDirectory + File.separator + inputJavaClassName + DOT_JAVA).toFile();
+    private File getInputJavaClassDirectory() {
+        return Paths.get(project.getBasedir() + File.separator + FOLDER_PATH_IO_KUBELESS).toFile();
     }
 
-    private File getOutputJavaSourceFile() {
-        return Paths.get(outputDirectory + File.separator + outputJavaClassName + DOT_JAVA).toFile();
+    private File getInputJavaClassFile() {
+        return Paths.get(getInputJavaClassDirectory() + File.separator + inputJavaClassName + DOT_JAVA).toFile();
+    }
+
+    private File getOutputJavaClassFile() {
+        return Paths.get(outputDirectory + File.separator + inputJavaClassName + DOT_JAVA).toFile();
+    }
+
+    private File getInputPomDirectory() {
+        return project.getBasedir();
     }
 
     private File getInputPomFile() {
-        return Paths.get(inputPomDirectory + File.separator + POM_XML).toFile();
+        return Paths.get(getInputPomDirectory() + File.separator + POM_XML).toFile();
     }
 
     private String getOutputResourceFilePath() {
@@ -219,7 +212,8 @@ public class KubelessConvertMojo extends AbstractMojo {
     private static final String POM_XML = "pom.xml";
     private static final String DOT_JAVA = ".java";
     private static final String POM_TEMPLATE_XML = "/pom-template.xml";
-    private static final String IO_KUBELESS = "io.kubeless";
+    private static final String PKG_NAME_IO_KUBELESS = "io.kubeless";
+    private static final String FOLDER_PATH_IO_KUBELESS = "src/main/java/io/kubeless";
     private static final List<String> EXCLUDE_DEPENDENCIES = Collections.singletonList("de.inoio.kubeless:jvm-runtime");
 
 }

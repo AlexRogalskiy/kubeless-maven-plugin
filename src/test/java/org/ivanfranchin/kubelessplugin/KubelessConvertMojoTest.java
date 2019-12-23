@@ -6,8 +6,8 @@ import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class KubelessConvertMojoTest {
 
     @Nested
-    @DisplayName("Tests that focus only on the input Java Class")
+    @DisplayName("Test only the input Java Class")
     class InputJavaClassTest {
 
         private static final String TEST_CLASS_FOLDER = "input-java-class-test";
@@ -34,22 +34,21 @@ class KubelessConvertMojoTest {
         @Test
         void whenInputJavaDoesNotExist() {
             String inputJavaClassName = "NonExistentClass";
-            File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-            File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
             File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
-            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, null, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+            File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
+            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
 
             Throwable exception = assertThrows(MojoExecutionException.class, kubelessConvertMojo::execute);
-            assertEquals("The input Java Class informed does not exist", exception.getMessage());
+            String expectedMessage = "The input Java Class informed does not exist in src/test/resources/unit/sources/input-java-class-test/src/main/java/io/kubeless";
+            assertEquals(expectedMessage, exception.getMessage());
         }
 
         @Test
         void whenInputJavaClassHasPrivateAccessModifier() {
             String inputJavaClassName = "PrivateAccessModifier";
-            File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-            File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
             File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
-            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, null, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+            File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
+            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
 
             Throwable exception = assertThrows(MojoExecutionException.class, kubelessConvertMojo::execute);
             assertEquals("Unable to parse input Java Class", exception.getMessage());
@@ -58,10 +57,9 @@ class KubelessConvertMojoTest {
         @Test
         void whenInputJavaClassHasProtectedAccessModifier() {
             String inputJavaClassName = "ProtectedAccessModifier";
-            File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-            File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
             File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
-            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, null, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+            File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
+            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
 
             Throwable exception = assertThrows(MojoExecutionException.class, kubelessConvertMojo::execute);
             assertEquals("Unable to parse input Java Class", exception.getMessage());
@@ -70,7 +68,7 @@ class KubelessConvertMojoTest {
     }
 
     @Nested
-    @DisplayName("Tests that focus only on the existence of a valid Kubeless Function in input Java Class")
+    @DisplayName("Test only on the existence of a valid Kubeless Function in input Java Class")
     class FunctionSignatureTest {
 
         private static final String TEST_CLASS_FOLDER = "function-signature-test";
@@ -80,14 +78,13 @@ class KubelessConvertMojoTest {
             IntStream.range(1, 8)
                     .mapToObj(n -> String.format("PublicWithoutKubelessFunction%s", n))
                     .forEach(inputJavaClassName -> {
-                        File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-                        File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
                         File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
-                        KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, null, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+                        File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
+                        KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
 
                         Throwable exception = assertThrows(MojoExecutionException.class, kubelessConvertMojo::execute);
-                        String expectedErrorMessage = "The input Java Class informed does not implement any Kubeless Function, i.e, one method that takes io.kubeless.Event and io.kubeless.Context as parameters and returns a String";
-                        assertEquals(expectedErrorMessage, exception.getMessage());
+                        String expectedMessage = "The input Java Class informed does not implement any Kubeless Function, i.e, one method that takes io.kubeless.Event and io.kubeless.Context as parameters and returns a String";
+                        assertEquals(expectedMessage, exception.getMessage());
                     });
         }
 
@@ -96,16 +93,14 @@ class KubelessConvertMojoTest {
             IntStream.range(1, 6)
                     .mapToObj(n -> String.format("PublicWithKubelessFunction%s", n))
                     .forEach(inputJavaClassName -> {
-                        String outputJavaClassName = "K" + inputJavaClassName;
-                        File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-                        File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
                         File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
+                        File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
 
                         try {
-                            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputJavaClassName, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+                            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
                             kubelessConvertMojo.execute();
 
-                            File outputClassFile = Paths.get(outputDirectory + File.separator + outputJavaClassName + ".java").toFile();
+                            File outputClassFile = Paths.get(outputDirectory + File.separator + inputJavaClassName + ".java").toFile();
                             assertTrue(outputClassFile.exists());
                         } catch (MojoExecutionException | MojoFailureException e) {
                             fail();
@@ -116,7 +111,7 @@ class KubelessConvertMojoTest {
     }
 
     @Nested
-    @DisplayName("Tests focus only on the input pom.xml")
+    @DisplayName("Test on the input pom.xml")
     class InputPomTest {
 
         private static final String TEST_CLASS_FOLDER = "input-pom-test";
@@ -124,20 +119,20 @@ class KubelessConvertMojoTest {
         @Test
         void whenInputPomDoesNotExist() throws MojoFailureException, MojoExecutionException {
             String inputJavaClassName = "AppFunction";
-            File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-            File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
             File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
+            File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
 
-            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, null, inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
 
             Throwable exception = assertThrows(MojoExecutionException.class, kubelessConvertMojo::execute);
-            assertEquals("The pom.xml file is not present in the directory informed", exception.getMessage());
+            String expectedMessage = "The input pom.xml file is not present in src/test/resources/unit/sources/input-pom-test";
+            assertEquals(expectedMessage, exception.getMessage());
         }
 
     }
 
     @Nested
-    @DisplayName("Tests focus only on the output Java Class and pom.xml")
+    @DisplayName("Test only on the output Java Class and pom.xml")
     class OutputPomTest {
 
         private static final String TEST_CLASS_FOLDER = "output-java-class-pom-test";
@@ -145,18 +140,15 @@ class KubelessConvertMojoTest {
         @Test
         void whenAllInputsInformedAreValid() throws MojoFailureException, MojoExecutionException, IOException, XmlPullParserException {
             String inputJavaClassName = "AppFunction";
-            String outputJavaClassName = "KAppFunction";
-            File inputJavaClassDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
-            File inputPomDirectory = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER).toFile();
             File outputDirectory = Paths.get("target/test-classes/unit/generated-sources/" + TEST_CLASS_FOLDER).toFile();
+            File baseDir = Paths.get("src/test/resources/unit/sources/" + TEST_CLASS_FOLDER + "/pom.xml").toFile();
 
-            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputJavaClassName,
-                    inputJavaClassDirectory, inputPomDirectory, outputDirectory);
+            KubelessConvertMojo kubelessConvertMojo = createKubelessConvertMojo(inputJavaClassName, outputDirectory, baseDir);
             kubelessConvertMojo.execute();
 
             //-- Assert Output Java Class
 
-            File outputClassFile = Paths.get(outputDirectory + File.separator + outputJavaClassName + ".java").toFile();
+            File outputClassFile = Paths.get(outputDirectory + File.separator + inputJavaClassName + ".java").toFile();
             assertTrue(outputClassFile.exists());
 
             CompilationUnit compilationUnit = StaticJavaParser.parse(outputClassFile);
@@ -174,15 +166,15 @@ class KubelessConvertMojoTest {
 
     //-- Helper Methods
 
-    private KubelessConvertMojo createKubelessConvertMojo(String inputJavaClassName, String outputJavaClassName,
-                                                          File inputJavaClassDirectory, File inputPomDirectory,
-                                                          File outputDirectory) {
+    private KubelessConvertMojo createKubelessConvertMojo(String inputJavaClassName, File outputDirectory, File baseDir) {
         KubelessConvertMojo kubelessConvertMojo = new KubelessConvertMojo();
         kubelessConvertMojo.inputJavaClassName = inputJavaClassName;
-        kubelessConvertMojo.outputJavaClassName = outputJavaClassName;
-        kubelessConvertMojo.inputJavaClassDirectory = inputJavaClassDirectory;
-        kubelessConvertMojo.inputPomDirectory = inputPomDirectory;
         kubelessConvertMojo.outputDirectory = outputDirectory;
+
+        MavenProject project = new MavenProject();
+        project.setFile(baseDir);
+        kubelessConvertMojo.project = project;
+
         return kubelessConvertMojo;
     }
 

@@ -16,7 +16,6 @@ A basic setup is
     <version>1.0-SNAPSHOT</version>
     <configuration>
         <inputJavaClassName>AppFunction</inputJavaClassName>
-        <outputJavaClassName>KAppFunction</outputJavaClassName>
     </configuration>
     <executions>
         <execution>
@@ -34,33 +33,30 @@ A basic setup is
 
 ### Configuration
 
-| Parameter               | Required | Read-Only | Default | Description |
-| ----------------------- | -------- | --------- | ------- | ----------- |
-| inputJavaClassName      | true     | false     |         | Name of the input Java Class that contains Kubeless Functions |
-| outputJavaClassName     | true     | false     |         | Name with which the output Java Class will be created|
-| inputJavaClassDirectory | true     | **true**  | ${basedir}/src/main/java/io/kubeless | Folder where the input Java Class is located |
-| inputPomDirectory       | true     | **true**  | ${basedir} | Folder where the `pom.xml` file of the project is located |
-| outputDirectory         | true     | false     | ${project.build.directory}/generated-sources/kubeless | Folder where the output Java Class and the new `pom.xml` file will be created |
+- #### inputJavaClassName
+  Name of the input Java Class that contains `Kubeless` Functions. The input Java Class file must be in `${basedir}/src/main/java/io/kubeless`.
+  
+- #### outputDirectory
+  Folder where the output Java Class and the new `pom.xml` file will be created. The default value is `${project.build.directory}/generated-sources/kubeless`.
 
 ### Tests
 
-#### Run only Unit Tests
+- #### Run only Unit Tests
+  Unit tests are written using [`JUnit 5`](https://junit.org/junit5/)
+  ```
+  mvn clean test
+  ```
 
-Unit tests are written using [`JUnit 5`](https://junit.org/junit5/)
-```
-mvn clean test
-```
+- #### Run only Integration Tests
 
-#### Run only Integration Tests
+  Integration tests uses [`maven-invoker-plugin`](https://maven.apache.org/plugins/maven-invoker-plugin/) and the `runt-its` profile and are in `src/it` folder.
+  ```
+  mvn clean verify -DskipTests -Prun-its
+  ```
 
-Integration tests uses [`maven-invoker-plugin`](https://maven.apache.org/plugins/maven-invoker-plugin/) and the `runt-its` profile and are in `src/it` folder.
-```
-mvn clean verify -DskipTests -Prun-its
-```
+- #### Run all Tests
 
-#### Run all Tests
-
-The command below will run Unit and Integration Tests
-```
-mvn clean verify -Prun-its
-```
+  The command below will run Unit and Integration Tests
+  ```
+  mvn clean verify -Prun-its
+  ```
